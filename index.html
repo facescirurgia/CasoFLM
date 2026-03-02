@@ -1,136 +1,141 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Caso FLM - Visualização 3D</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>CasoFLM – Visualização 3D</title>
   <style>
-    body { margin: 0; overflow: hidden; background: #f2f4f7; }
-    #header {
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      padding: 12px 16px;
-      background: rgba(255,255,255,0.95);
+    html, body { height: 100%; margin: 0; }
+    body { background: #f2f4f7; overflow: hidden; }
+    #top {
+      position: fixed; left: 0; right: 0; top: 0;
+      padding: 12px 14px;
       font-family: Arial, sans-serif;
-      font-size: 14px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+      background: rgba(255,255,255,.92);
+      box-shadow: 0 2px 10px rgba(0,0,0,.06);
       z-index: 10;
     }
     #status {
-      position: absolute;
-      bottom: 12px;
-      left: 12px;
-      right: 12px;
-      font-family: Arial, sans-serif;
-      font-size: 12px;
-      background: rgba(255,255,255,0.9);
-      padding: 8px 10px;
-      border-radius: 6px;
+      position: fixed; left: 12px; right: 12px; bottom: 12px;
+      font-family: Arial, sans-serif; font-size: 12px;
+      background: rgba(255,255,255,.9);
+      padding: 8px 10px; border-radius: 10px;
+      z-index: 10;
+      word-break: break-word;
     }
+    canvas { display:block; }
   </style>
 </head>
 <body>
+  <div id="top">
+    Planejamento Ortognático – <b>CasoFLM</b><br/>
+    Arquivo: <b>FFM.stl</b>
+  </div>
+  <div id="status">Iniciando…</div>
 
-<div id="header">
-  Planejamento Ortognático – Caso FLM<br>
-  <strong>Arquivo carregado:</strong> FFM.stl
-</div>
+  <script type="module">
+    // ✅ Altere só esta linha quando trocar de caso
+    const STL_FILE = "FFM.stl";
 
-<div id="status">Carregando modelo...</div>
+    const statusEl = document.getElementById("status");
+    const setStatus = (msg) => statusEl.textContent = msg;
 
-<script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.152.2/examples/js/loaders/STLLoader.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.152.2/examples/js/controls/OrbitControls.js"></script>
+    // Importa Three.js e loaders (modo módulo — muito mais confiável no GitHub Pages)
+    import * as THREE from "https://unpkg.com/three@0.152.2/build/three.module.js";
+    import { OrbitControls } from "https://unpkg.com/three@0.152.2/examples/jsm/controls/OrbitControls.js";
+    import { STLLoader } from "https://unpkg.com/three@0.152.2/examples/jsm/loaders/STLLoader.js";
 
-<script>
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xf2f4f7);
 
-const STL_FILE = "FFM.stl";  // 🔵 Nome EXATO do arquivo STL
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 5000);
+    camera.position.set(0, -150, 150);
 
-const statusEl = document.getElementById("status");
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    document.body.appendChild(renderer.domElement);
 
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xf2f4f7);
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
 
-const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 5000);
-camera.position.set(0, -150, 150);
+    // Luzes
+    const key = new THREE.DirectionalLight(0xffffff, 1.2);
+    key.position.set(1, 1, 1);
+    scene.add(key);
 
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-document.body.appendChild(renderer.domElement);
+    const fill = new THREE.DirectionalLight(0xffffff, 0.6);
+    fill.position.set(-1, -1, 0.6);
+    scene.add(fill);
 
-const controls = new THREE.OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-controls.dampingFactor = 0.08;
+    scene.add(new THREE.AmbientLight(0xffffff, 0.4));
 
-const light1 = new THREE.DirectionalLight(0xffffff, 1.2);
-light1.position.set(1, 1, 1);
-scene.add(light1);
+    // Carregamento STL
+    const loader = new STLLoader();
 
-const light2 = new THREE.DirectionalLight(0xffffff, 0.6);
-light2.position.set(-1, -1, 0.5);
-scene.add(light2);
+    setStatus("Carregando STL… (isso pode levar alguns segundos no celular)");
 
-scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+    loader.load(
+      STL_FILE,
+      (geometry) => {
+        geometry.computeVertexNormals();
+        geometry.computeBoundingBox();
 
-const loader = new THREE.STLLoader();
-loader.load(
-  STL_FILE,
-  (geometry) => {
+        const material = new THREE.MeshPhongMaterial({ color: 0x1565c0, shininess: 90 });
+        const mesh = new THREE.Mesh(geometry, material);
 
-    geometry.computeBoundingBox();
-    geometry.center();
+        // Centraliza
+        const box = geometry.boundingBox;
+        const size = new THREE.Vector3();
+        const center = new THREE.Vector3();
+        box.getSize(size);
+        box.getCenter(center);
+        mesh.position.sub(center);
 
-    const material = new THREE.MeshPhongMaterial({
-      color: 0x1565c0,
-      shininess: 90
-    });
+        scene.add(mesh);
 
-    const mesh = new THREE.Mesh(geometry, material);
-    scene.add(mesh);
+        // Ajusta câmera
+        const maxDim = Math.max(size.x, size.y, size.z);
+        const dist = maxDim * 1.8;
+        camera.position.set(0, -dist, dist);
+        camera.lookAt(0, 0, 0);
+        controls.target.set(0, 0, 0);
+        controls.update();
 
-    const box = geometry.boundingBox;
-    const size = new THREE.Vector3();
-    box.getSize(size);
+        setStatus("Modelo carregado ✅ (arraste para girar • pinça/scroll para zoom)");
+      },
+      (xhr) => {
+        if (xhr?.total) {
+          const pct = Math.round((xhr.loaded / xhr.total) * 100);
+          setStatus(`Carregando STL… ${pct}%`);
+        }
+      },
+      (err) => {
+        console.error(err);
+        // Dica diagnóstica: tentar achar se é 404/403
+        setStatus(
+          "Erro ao carregar o STL ❌\n" +
+          "Cheque estes itens:\n" +
+          "1) O arquivo FFM.stl está na RAIZ do repositório (mesmo nível do index.html).\n" +
+          "2) Nome EXACTO: FFM.stl (mesma caixa: maiúscula/minúscula).\n" +
+          "3) Abra o link do Pages e depois tente abrir: (link_do_pages)/FFM.stl — se der 404, é caminho/Pages."
+        );
+      }
+    );
 
-    const maxDim = Math.max(size.x, size.y, size.z);
-    const dist = maxDim * 1.8;
-
-    camera.position.set(0, -dist, dist);
-    camera.lookAt(0, 0, 0);
-    controls.target.set(0, 0, 0);
-    controls.update();
-
-    statusEl.textContent = "Modelo carregado ✅ (arraste para girar, zoom para aproximar)";
-  },
-  (xhr) => {
-    if (xhr.total) {
-      const percent = Math.round((xhr.loaded / xhr.total) * 100);
-      statusEl.textContent = "Carregando modelo... " + percent + "%";
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
     }
-  },
-  (error) => {
-    console.error("Erro ao carregar STL:", error);
-    statusEl.textContent = "Erro ao carregar FFM.stl. Verifique se o arquivo está na raiz do repositório e com o nome exato.";
-  }
-);
+    animate();
 
-function animate() {
-  requestAnimationFrame(animate);
-  controls.update();
-  renderer.render(scene, camera);
-}
-animate();
-
-window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-});
-
-</script>
-
+    window.addEventListener("resize", () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
 </body>
 </html>
